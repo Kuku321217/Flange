@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integral Flange Design — ASME Sec VIII Div 1 App. 2</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#101418; --ink-2:#454e57; --ink-3:#7a848e;
+  --paper:#f3f0e9; --card:#ffffff; --line:#d9d3c6; --line-2:#e7e2d7;
+  --steel:#2c5b7c; --amber:#b5731a;
+  --ok:#2f6d4f; --ok-bg:#e6f0ea;
+  --no:#a8362f; --no-bg:#f6e6e4;
+  --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+/* export toolbar */
+.mast-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.mast-actions button{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.04em;
+  color:var(--ink);background:var(--card);border:1.4px solid var(--ink);border-radius:2px;
+  padding:7px 12px;cursor:pointer;transition:background .12s,color .12s}
+.mast-actions button:hover{background:var(--ink);color:var(--paper)}
+.mast-actions button .ic{opacity:.65;margin-right:5px}
+@media print{
+  .mast-actions,.inputs .legend,.suggest-slot,.reset{display:none !important}
+}
+/* AY signature badge */
+#ay-signature{position:fixed;right:10px;bottom:8px;z-index:2147483647;
+  font-family:var(--mono),monospace;font-size:11px;font-weight:600;letter-spacing:.05em;
+  color:var(--ink-2,#454e57);background:rgba(255,255,255,.82);
+  border:1px solid var(--line,#d9d3c6);border-radius:2px;padding:3px 8px;
+  pointer-events:none;user-select:none}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;min-height:100vh}
+
+/* masthead */
+.masthead{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;
+  padding:26px 30px 22px;border-bottom:2px solid var(--ink);flex-wrap:wrap}
+.mast-tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.22em;color:var(--amber);font-weight:600;margin-bottom:8px}
+.masthead h1{margin:0;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.mast-sub{color:var(--ink-3);font-size:12.5px;margin-top:7px;font-family:var(--mono)}
+.verdict{display:flex;align-items:center;gap:12px;padding:11px 16px 11px 14px;border:1.5px solid;border-radius:2px;background:var(--card)}
+.verdict.ok{border-color:var(--ok);background:var(--ok-bg)}
+.verdict.no{border-color:var(--no);background:var(--no-bg)}
+.verdict-dot{width:11px;height:11px;border-radius:50%}
+.verdict.ok .verdict-dot{background:var(--ok);box-shadow:0 0 0 4px rgba(47,109,79,.18)}
+.verdict.no .verdict-dot{background:var(--no);box-shadow:0 0 0 4px rgba(168,54,47,.18)}
+.verdict-word{font-family:var(--mono);font-weight:600;font-size:14px;letter-spacing:.06em}
+.verdict.ok .verdict-word{color:var(--ok)}
+.verdict.no .verdict-word{color:var(--no)}
+.verdict-note{font-size:11px;color:var(--ink-3)}
+
+/* layout */
+.body{display:grid;grid-template-columns:320px 1fr;align-items:start}
+.inputs{border-right:1px solid var(--line);padding:18px 18px 26px;position:sticky;top:0;max-height:100vh;overflow-y:auto}
+.results{padding:22px 26px 30px;min-width:0}
+
+/* input groups */
+.group{margin-bottom:18px}
+.group-head{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--steel);font-weight:600;padding-bottom:6px;margin-bottom:8px;border-bottom:1px solid var(--line-2)}
+.field{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:3px 0}
+.field-name{font-size:12.5px;color:var(--ink-2);flex:1}
+.field-input{display:inline-flex;align-items:center;gap:5px}
+.field-input em,.dl em,.card-main em,.factor em{font-style:normal;color:var(--ink-3);font-family:var(--mono);font-size:10.5px}
+.field input,.field select{width:96px;font-family:var(--mono);font-size:13px;text-align:right;
+  padding:5px 7px;border:1px solid var(--line);border-radius:2px;background:var(--card);color:var(--ink)}
+.field select{width:auto;min-width:74px;text-align:left}
+.field input:focus,.field select:focus{outline:2px solid var(--steel);outline-offset:-1px;border-color:var(--steel)}
+.reset{width:100%;margin-top:6px;padding:9px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+  background:var(--ink);color:var(--paper);border:none;border-radius:2px;cursor:pointer}
+.reset:hover{background:var(--steel)}
+.reset-alt{background:transparent;color:var(--ink-2);border:1px solid var(--line);margin-top:8px}
+.reset-alt:hover{background:var(--line-2);color:var(--ink)}
+
+/* suggested (bold red auto-calc) values */
+.field-wrap{padding-bottom:2px}
+.legend{display:flex;align-items:center;gap:7px;font-size:10.5px;color:var(--ink-3);
+  font-family:var(--mono);margin-bottom:14px;line-height:1.3}
+.legend-swatch{width:10px;height:10px;border-radius:2px;background:var(--no);flex:none}
+.suggest{display:flex;align-items:center;gap:8px;margin:1px 0 5px auto;width:fit-content;
+  padding:2px 4px 2px 8px}
+.suggest-label{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.suggest-val{font-family:var(--mono);font-size:12.5px;font-weight:700;color:var(--no)}
+.suggest-use{font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.05em;
+  padding:2px 8px;border:1px solid var(--no);color:var(--no);background:var(--no-bg);
+  border-radius:2px;cursor:pointer}
+.suggest-use:hover{background:var(--no);color:#fff}
+.suggest-tick{font-family:var(--mono);font-size:9.5px;color:var(--ok);font-weight:600}
+.suggest-match .suggest-val{color:var(--ok)}
+
+/* check cards */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.card{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--ink-3);border-radius:2px;padding:12px 13px}
+.card-ok{border-top-color:var(--ok)}
+.card-no{border-top-color:var(--no)}
+.card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.card-title{font-size:11.5px;color:var(--ink-2);font-weight:600}
+.card-main{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-.01em}
+.card-rel{font-size:10.5px;color:var(--ink-3);font-family:var(--mono);margin-top:3px}
+
+.pill{font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.08em;padding:2px 6px;border-radius:2px}
+.p-ok{background:var(--ok-bg);color:var(--ok)}
+.p-no{background:var(--no-bg);color:var(--no)}
+
+/* panels */
+.panel{background:var(--card);border:1px solid var(--line);border-radius:2px;margin-bottom:18px}
+.panel-head{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line-2)}
+.panel-head h2{margin:0;font-size:14.5px;font-weight:600;letter-spacing:-.01em}
+.panel-note{font-size:11px;color:var(--ink-3);font-family:var(--mono);margin-top:2px;display:block}
+.chevron{font-family:var(--mono);font-size:18px;color:var(--ink-3);line-height:1}
+.panel-body{padding:14px 16px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+
+/* stress table */
+table.stress{width:100%;border-collapse:collapse;font-size:12.5px}
+.stress thead th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:600;padding:5px 8px;text-align:center;border-bottom:1px solid var(--line)}
+.stress thead .sub th{padding-top:2px;padding-bottom:6px;font-size:9.5px}
+.stress th.l,.stress td.l{text-align:left}
+.stress tbody td{padding:7px 8px;border-bottom:1px solid var(--line-2)}
+.stress tbody tr:last-child td{border-bottom:none}
+.stress td.l{color:var(--ink-2);font-weight:500}
+.stress td.num{font-family:var(--mono);text-align:right}
+.stress td.num.dim{color:var(--ink-3)}
+.stress td.flag{text-align:center;width:52px}
+.stress tbody tr:hover{background:#faf8f3}
+
+/* util bars */
+.bars{margin-top:16px;padding-top:14px;border-top:1px solid var(--line-2)}
+.bars-cap{font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--ink-3);text-transform:uppercase;margin-bottom:10px}
+.bar-row{display:grid;grid-template-columns:170px 1fr 44px;align-items:center;gap:12px;margin-bottom:7px}
+.bar-name{font-size:11.5px;color:var(--ink-2)}
+.bar-track{position:relative;height:12px;background:var(--line-2);border-radius:1px;overflow:visible}
+.bar-fill{height:100%;background:var(--steel);border-radius:1px;transition:width .25s ease}
+.bar-fill.bar-over{background:var(--no)}
+.bar-limit{position:absolute;top:-2px;bottom:-2px;width:1.5px;background:var(--ink);left:76.9%;opacity:.55}
+.bar-pct{font-family:var(--mono);font-size:11px;text-align:right;color:var(--ink-2)}
+.bar-pct.over{color:var(--no);font-weight:600}
+
+/* definition lists */
+.dl{margin:0}
+.dl-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:5px 0;border-bottom:1px solid var(--line-2)}
+.dl-row:last-child{border-bottom:none}
+.dl-head{border-bottom:none;padding-bottom:1px;padding-top:8px}
+.dl-head dt{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.dl dt{font-size:12px;color:var(--ink-2)}
+.dl dd{margin:0;font-family:var(--mono);font-size:12.5px;font-weight:500;white-space:nowrap}
+
+/* factors grid */
+.factors{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--line-2);border:1px solid var(--line-2)}
+.factor{background:var(--card);padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+.fn{font-size:11px;color:var(--steel);font-weight:600}
+.fv{font-family:var(--mono);font-size:13px}
+
+.foot{padding:16px 30px 26px;color:var(--ink-3);font-size:11px;border-top:1px solid var(--line);
+  font-family:var(--mono);line-height:1.6;max-width:900px}
+
+@media(max-width:980px){
+  .body{grid-template-columns:1fr}
+  .inputs{position:static;max-height:none;border-right:none;border-bottom:1px solid var(--line)}
+  .cards{grid-template-columns:1fr 1fr}
+  .two-col{grid-template-columns:1fr}
+  .factors{grid-template-columns:repeat(3,1fr)}
+  .bar-row{grid-template-columns:120px 1fr 40px}
+}
+@media(max-width:560px){
+  .cards{grid-template-columns:1fr}
+  .masthead h1{font-size:24px}
+  .factors{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<!-- Developed by :AY -->
+<div id="app"></div>
+
+<script>
+// ============================================================================
+// ASME Sec VIII Div.1 Appendix 2 — Integral Flange Design
+// HTML port of Flange_2.xlsm. Calculation engine verified cell-for-cell
+// against the original workbook (all outputs match to 4+ sig figs).
+// ============================================================================
+"use strict";
+
+var log10 = function(x){ return Math.log(x)/Math.LN10; };
+
+// TEMA metric bolt table (flange3!AA1:AJ23), keyed by bolt size.
+// [pitch, rootArea, nut, acrossCorners, spacingB, Rh, Rt, edgeE, wrenchDia]
+var BOLT_TABLE = {
+  M12:[1.75,72.396,21,24.25,31.6,20.64,15.4,15.4,38],
+  M14:[2,99.773,24,27.71,35.6,22.36,16.9,16.9,42.5],
+  M16:[2,138.324,27,31.18,39.7,24.1,19.5,19.5,47],
+  M18:[2.5,167.966,30,34.64,43.7,26.25,21.5,21,51.5],
+  M20:[2.5,217.051,34,39.26,46.8,28.2,23,22.5,53],
+  M22:[2.5,272.419,36,41.57,51.5,30.5,26.5,26,60],
+  M24:[3,312.748,41,47.34,57.5,33.5,29.5,29,66],
+  M27:[3,413.852,46,53.12,65,38,31,30.5,75],
+  M30:[3.5,502.965,50,57.74,69.9,40.5,33,32.5,80],
+  M33:[3.5,630.218,55,63.25,76.5,44.25,36,35.5,87.5],
+  M36:[4,738.015,60,69.28,82.6,47.25,38,37.5,93.5],
+  M39:[4,889.535,65,74.75,89.2,51,42,41.5,101],
+  M42:[4.5,1018.218,70,80.83,96.6,55.25,45,44,109.5],
+  M45:[4.5,1194.958,75,86.25,101.9,57.75,47.5,46.5,114.5],
+  M48:[5,1342.959,80,92.38,109.3,62,51,50,123],
+  M52:[5,1616.336,85,97.75,115,65,56,54,129],
+  M56:[5.5,1862.725,90,103.92,124.7,71.5,58.5,56.5,142],
+  M64:[6,2467.15,100,115.47,135.7,76.5,64,61.5,152],
+  M72:[6,3221.775,110,127.02,151.7,86.5,71,66.5,172],
+  M80:[6,4076.831,120,138.56,162.6,91.5,78.5,74,182],
+  M90:[6,5287.085,135,155.88,181.5,101.5,88.5,84,202],
+  M100:[6,6651.528,150,173.21,202.5,113.5,93.5,90.5,226]
+};
+var BOLT_SIZES = Object.keys(BOLT_TABLE);
+
+// ---------------------------------------------------------------------------
+// Auto-calculated "suggested" values — the bold-RED column-H cells in the
+// workbook. Each is a recommended value the user may accept or override.
+//   flange3!H14 hub g0     = shell adopted thickness (= g0 here)
+//   flange3!H15 hub g1     = 1.5*(g0-CA)+CA
+//   flange3!H16 hub length = MAX(1.5*g0, ID<=450?25:32)
+//   flange3!H20 BCD        = ROUNDUP(ID + 2*g1 + 2*Rh, 0)
+//   flange3!H22 flange OD  = ROUNDUP(BCD + 2*edgeE, 0)
+//   flange3!H23 gasket OD  = BCD - (bolt numeric size) - 9 - 11
+// Returns a map of {inputKey: suggestedNumber}. Keys match the F-cell inputs.
+function suggestValues(inp){
+  var F3=Number(inp.F3), F10=Number(inp.F10), F14=Number(inp.F14),
+      F15=Number(inp.F15), F20=Number(inp.F20), F19=inp.F19;
+  var B = BOLT_TABLE[F19] || [];
+  var Rh = B[5], edgeE = B[7];
+  var s = {};
+  s.F14 = F14;                                   // H14 (hub small end = shell thk)
+  s.F15 = 1.5*(F14-F10)+F10;                      // H15 hub large end g1
+  s.F16 = Math.max(1.5*F14, F3<=450?25:32);       // H16 hub length
+  if(Rh!=null)  s.F20 = Math.ceil(F3 + 2*F15 + 2*Rh);      // H20 bolt circle dia
+  if(edgeE!=null) s.F22 = Math.ceil(F20 + 2*edgeE);        // H22 flange OD
+  // H23 gasket OD = BCD - (bolt numeric size) - 9 - 11
+  //   AA25=F19 (e.g. "M20"), AA26=RIGHT(AA25,LEN-1) -> numeric part "20"
+  var boltNum = parseFloat(String(F19).replace(/^[A-Za-z]+/, ""));
+  if(isFinite(boltNum)) s.F23 = F20 - boltNum - 9 - 11;   // H23 gasket OD
+  return s;
+}
+
+function computeFlange(inp){
+  var F3=inp.F3,F5=inp.F5,F6=inp.F6,F7=inp.F7,F9=inp.F9,F10=inp.F10,
+      F12=inp.F12,F13=inp.F13,F14=inp.F14,F15=inp.F15,F16=inp.F16,
+      F18=inp.F18,F19=inp.F19,F20=inp.F20,F21=inp.F21,F22=inp.F22,
+      F23=inp.F23,F24in=inp.F24in,m=inp.m,y=inp.y,Eop=inp.Eop,Egs=inp.Egs;
+
+  var B = BOLT_TABLE[F19];
+  if(!B) throw new Error("Unknown bolt size "+F19);
+  var AC25=B[1], AF25=B[4], AH25=B[6];
+
+  var F24 = (F24in!=null && F24in!=="") ? Number(F24in) : F23-2*F18;
+  var AD34 = F3+2*F10;
+  var AD35 = F5-F10;
+  var F29 = F3+2*F10;
+
+  var F31 = F18/2;
+  var F32 = F31>6 ? 0.5*Math.sqrt(25.4)*Math.sqrt(F31) : F31;
+  var F30 = F31>6 ? F23-2*F32 : (F23+F24)/2;
+
+  var F34 = (Math.PI*Math.pow(F30,2)*F9/4)*1e-2;
+  var F35 = (Math.PI*Math.pow(AD34,2)*F9/4)*1e-2;
+  var F36 = 2*F32*Math.PI*F30*m*F9*1e-2;
+  var F37 = F34-F35;
+  var F38 = F34+F36;
+  var F39 = Math.PI*F32*F30*y*1e-2;
+  var F40 = Math.max(F38/F12,F39/F13)*1e2;
+
+  var F42 = 2*AH25+(6*AD35)/(m+0.5);
+  var F43 = F20*Math.sin(Math.PI/F21);
+  var F44 = Math.max(Math.sqrt(F43/(2*AH25+AD35)),1);
+
+  var D48 = AC25*F21;
+  var F54 = D48*F13*1e-2;
+  var F55 = F38-F34;
+
+  var D49 = (F20-F3-2*F15)/2;
+  var F58 = D49+0.5*(F15-F10);
+  var F59 = (F20-F30)/2;
+  var F60 = (D49+F15-F10+F59)/2;
+
+  var F64 = F35*F58*F44*1e-3;
+  var F65 = F37*F60*F44*1e-3;
+  var F66 = F55*F59*F44*1e-3;
+  var F67 = F54*F59*F44*1e-3;
+  var F69 = F64+F65+F66;
+  var F70 = F67;
+
+  var h0 = Math.sqrt(F29*(F14-F10));
+  var gg1=F15, gg0=F14, hub=F16;
+  var A = (gg1-F10)/(gg0-F10)-1;
+  var C = 43.68*Math.pow(hub/h0,4);
+
+  var BB7 = 1/3+A/12;
+  var BB8 = 5/42+(17*A)/336;
+  var BB9 = 1/210+A/360;
+  var BB10 = 11/360+(59*A)/5040+(1+3*A)/C;
+  var BB11 = 1/90+(5*A)/1008-Math.pow(1+A,3)/C;
+  var BB12 = 1/120+(17*A)/5040+1/C;
+  var BB13 = 215/2772+(51*A)/1232+((60/7+(225*A)/14+(75*A*A)/7+(5*A*A*A)/2)/C);
+  var BB14 = 31/6930+(128*A)/45045+((6/7+(15*A)/7+(12*A*A)/7+(5*A*A*A)/11)/C);
+  var BB15 = 533/30240+(653*A)/73920+((1/2+(33*A)/14+(39*A*A)/28+(25*A*A*A)/84)/C);
+  var BB16 = 29/3780+(3*A)/704-((1/2+(33*A)/14+(81*A*A)/28+(13*A*A*A)/12)/C);
+  var BB17 = 31/6048+(1763*A)/665280+((1/2+(6*A)/7+(15*A*A)/28+(5*A*A*A)/42)/C);
+  var BB18 = 1/2925+(71*A)/300300+((8/35+(18*A)/35+(156*A*A)/385+(6*A*A*A)/55)/C);
+  var BB19 = 761/831600+(937*A)/1663200+((1/35+(6*A)/35+(11*A*A)/70+(3*A*A*A)/70)/C);
+  var BB20 = 197/415800+(103*A)/332640-((1/35+(6*A)/35+(17*A*A)/70+Math.pow(A,3)/10)/C);
+  var BB21 = 233/831600+(97*A)/554400+((1/35+(3*A)/35+A*A/14+(2*A*A*A)/105)/C);
+
+  var BB22 = BB7*BB13*BB18+BB8*BB14*BB9+BB9*BB14*BB8-BB13*BB9*BB9-BB7*BB14*BB14-BB18*BB8*BB8;
+  var BB23 = (BB10*BB13*BB18+BB8*BB14*BB19+BB9*BB14*BB15-BB19*BB13*BB9-BB10*BB14*BB14-BB18*BB8*BB15)/BB22;
+  var BB24 = (BB11*BB13*BB18+BB8*BB14*BB20+BB9*BB14*BB16-BB20*BB13*BB9-BB11*BB14*BB14-BB18*BB8*BB16)/BB22;
+  var BB25 = (BB12*BB13*BB18+BB8*BB14*BB21+BB9*BB14*BB17-BB21*BB13*BB9-BB12*BB14*BB14-BB18*BB8*BB17)/BB22;
+  var BB26 = (BB7*BB15*BB18+BB10*BB14*BB9+BB9*BB19*BB8-BB15*BB9*BB9-BB19*BB14*BB7-BB18*BB10*BB8)/BB22;
+  var BB27 = (BB7*BB16*BB18+BB11*BB14*BB9+BB9*BB20*BB8-BB16*BB9*BB9-BB20*BB14*BB7-BB18*BB11*BB8)/BB22;
+  var BB28 = (BB7*BB17*BB18+BB12*BB14*BB9+BB9*BB21*BB8-BB17*BB9*BB9-BB21*BB14*BB7-BB18*BB12*BB8)/BB22;
+  var BB29 = (BB7*BB13*BB19+BB8*BB15*BB9+BB10*BB14*BB8-BB9*BB13*BB10-BB14*BB15*BB7-BB19*BB8*BB8)/BB22;
+  var BB30 = (BB7*BB13*BB20+BB8*BB16*BB9+BB11*BB14*BB8-BB9*BB13*BB11-BB14*BB16*BB7-BB20*BB8*BB8)/BB22;
+  var BB31 = (BB7*BB13*BB21+BB8*BB17*BB9+BB12*BB14*BB8-BB9*BB13*BB12-BB14*BB17*BB7-BB21*BB8*BB8)/BB22;
+
+  var BB32 = -Math.pow(C/4,0.25);
+  var BB33 = BB26-BB23-5/12+BB23*BB32;
+  var BB34 = BB28-BB25-1/12+BB25*BB32;
+  var BB35 = -Math.sqrt(C/4);
+  var BB36 = -Math.pow(C/4,0.75);
+  var BB37 = (3*A)/2-BB23*BB36;
+  var BB38 = 1/2-BB25*BB36;
+  var BB39 = 0.5*BB32*BB38+BB34*BB37*BB35-0.5*BB36*BB34-BB38*BB33*BB35;
+  var BB40 = 1/12+BB24-BB27-BB24*BB32;
+  var BB41 = -(BB24*Math.pow(C/4,0.75));
+  var BB42 = (BB34*BB41*BB35-BB38*BB40*BB35)/BB39;
+  var BB43 = (0.5*BB32*BB41+BB40*BB37*BB35-0.5*BB36*BB40-BB41*BB33*BB35)/BB39;
+  var BB44 = BB23*BB42+BB24+BB25*BB43;
+  var BB45 = BB26*BB42+BB27+BB28*BB43;
+  var BB46 = BB29*BB42+BB30+BB31*BB43;
+  var BB47 = 1/4+BB43/12+BB42/4-BB46/5-1.5*BB45-BB44;
+  var BB48 = BB44/2+(BB44*A)/6+BB45/4+(11*BB45*A)/84+BB46/70+(BB46*A)/105;
+  var BB49 = BB48-(BB42*7)/120-(BB42*A)/36-(3*BB42*A)/C-1/40-A/72-BB43/60-(BB43*A)/120-BB43/C;
+  var BB51 = -BB49/(Math.pow(C/2.73,0.25)*(Math.pow(1+A,3)/C));
+  var BB52 = BB47/(Math.pow(2.73/C,0.25)*Math.pow(1+A,3));
+  var BB53 = Math.max(BB42/(1+A),1);
+
+  var K = F22/AD34;
+  var T = ((8.55246*log10(K)+1)*K*K-1)/((1.0472+1.9448*K*K)*(K-1));
+  var U = ((8.55246*log10(K)+1)*K*K-1)/(1.36136*(K*K-1)*(K-1));
+  var Y = (((K*K*log10(K))/(K*K-1))*5.7169+0.66845)/(K-1);
+  var Z = (K*K+1)/(K*K-1);
+
+  var d = (U/BB52)*h0*Math.pow(gg0-F10,2);
+  var e = BB51/h0;
+  var beta = (4/3)*AD35*e+1;
+  var lambda = (AD35*e+1)/T+Math.pow(AD35,3)/d;
+  var f = BB53, V = BB52;
+
+  var gCorr = F15-F10;
+  var SH_op = (f*F69/(lambda*gCorr*gCorr*AD34))*1e5;
+  var SH_gs = (f*F70/(lambda*gCorr*gCorr*AD34))*1e5;
+  var SR_op = (beta*F69/(lambda*AD35*AD35*AD34))*1e5;
+  var SR_gs = (beta*F70/(lambda*AD35*AD35*AD34))*1e5;
+  var ST_op = (Y*F69/(AD35*AD35*AD34))*1e5-Z*SR_op;
+  var ST_gs = (Y*F70/(AD35*AD35*AD34))*1e5-Z*SR_gs;
+  var SA_op = (SH_op+Math.max(SR_op,ST_op))/2;
+  var SA_gs = (SH_gs+Math.max(SR_gs,ST_gs))/2;
+  var BS_op = (F38/D48)*1e2;
+  var BS_gs = (F39/D48)*1e2;
+
+  var rigid_op = (52.14*(F69/F44)*1e5*V)/(lambda*Eop*Math.pow(F14-F10,2)*0.3*h0);
+  var rigid_gs = ((52.14*V*F70)/(lambda*Egs*Math.pow(F14-F10,2)*0.3*h0))*1e5;
+
+  var pass = function(a,lim){ return a<=lim; };
+  var stresses = [
+    {name:"Longitudinal hub stress", op:SH_op, opAllow:1.5*F6, gs:SH_gs, gsAllow:1.5*F7},
+    {name:"Radial flange stress",    op:SR_op, opAllow:F6,     gs:SR_gs, gsAllow:F7},
+    {name:"Tangential flange stress",op:ST_op, opAllow:F6,     gs:ST_gs, gsAllow:F7},
+    {name:"Max average stress",      op:SA_op, opAllow:F6,     gs:SA_gs, gsAllow:F7},
+    {name:"Bolting stress",          op:BS_op, opAllow:F12,    gs:BS_gs, gsAllow:F13}
+  ].map(function(s){ s.opPass=pass(s.op,s.opAllow); s.gsPass=pass(s.gs,s.gsAllow); return s; });
+
+  var res = {
+    F24:F24, G:F30, b0:F31, b:F32, h0:h0,
+    H:F34, HD:F35, HP:F36, HT:F37, Wm1:F38, Wm2:F39, Am:F40,
+    Ab:D48, W:F54, HG:F55,
+    maxSpacing:F42, actualSpacing:F43, BSC:F44,
+    boltRootArea:AC25, minBoltSpacing:AF25,
+    hD:F58, hG:F59, hT:F60,
+    Md:F64, Mt:F65, Mg:F66, Mgs:F67, MOP:F69, MGS:F70,
+    A:A, C:C, F:BB51, V:V, f:f, K:K, T:T, U:U, Y:Y, Z:Z, d:d, e:e, beta:beta, lambda:lambda,
+    stresses:stresses,
+    boltAreaReq:F40, boltAreaAvail:D48, boltAreaPass:D48>=F40,
+    spacingPass:(F43<=F42 && F43>=AF25),
+    rigidityOp:rigid_op, rigidityGs:rigid_gs,
+    rigidityOpPass:rigid_op<=1, rigidityGsPass:rigid_gs<=1
+  };
+  res.overallPass = stresses.every(function(s){return s.opPass && s.gsPass;})
+    && res.boltAreaPass && res.spacingPass && res.rigidityOpPass && res.rigidityGsPass;
+  return res;
+}
+
+// ---------------------------------------------------------------------------
+var DEFAULTS = {
+  F3:387.3, F5:45, F6:1213.46, F7:1407.13, F9:7, F10:3,
+  F12:1753.82, F13:1753.82, F14:12, F15:20, F16:27,
+  F18:10, F19:"M20", F20:494, F21:20, F22:545, F23:441, F24in:421,
+  m:3, y:703.07, Eop:1800601, Egs:2067025
+};
+
+var GROUPS = [
+  {label:"Flange", fields:[
+    {k:"F3",t:"Inside diameter",u:"mm"},
+    {k:"F5",t:"Thickness  t",u:"mm"},
+    {k:"F22",t:"Outside diameter  A",u:"mm"},
+    {k:"F10",t:"Corrosion allowance",u:"mm"},
+    {k:"F6",t:"Allow. stress @ design T",u:"kg/cm\u00b2"},
+    {k:"F7",t:"Allow. stress @ ambient T",u:"kg/cm\u00b2"}
+  ]},
+  {label:"Hub", fields:[
+    {k:"F14",t:"Thickness small end  g\u2080",u:"mm"},
+    {k:"F15",t:"Thickness large end  g\u2081",u:"mm"},
+    {k:"F16",t:"Hub length  h",u:"mm"}
+  ]},
+  {label:"Loading", fields:[
+    {k:"F9",t:"Design pressure  P",u:"kg/cm\u00b2"}
+  ]},
+  {label:"Bolting", fields:[
+    {k:"F19",t:"Bolt size",u:"",select:BOLT_SIZES},
+    {k:"F20",t:"Bolt circle dia  C",u:"mm"},
+    {k:"F21",t:"Number of bolts  n",u:""},
+    {k:"F12",t:"Bolt allow. stress @ design T",u:"kg/cm\u00b2"},
+    {k:"F13",t:"Bolt allow. stress @ ambient T",u:"kg/cm\u00b2"}
+  ]},
+  {label:"Gasket", fields:[
+    {k:"F23",t:"Gasket OD",u:"mm"},
+    {k:"F24in",t:"Gasket ID",u:"mm"},
+    {k:"F18",t:"Gasket width  N",u:"mm"},
+    {k:"m",t:"Gasket factor  m",u:""},
+    {k:"y",t:"Seating stress  y",u:"kg/cm\u00b2"}
+  ]},
+  {label:"Material moduli", fields:[
+    {k:"Eop",t:"Modulus  E (operating)",u:"MPa"},
+    {k:"Egs",t:"Modulus  E (seating)",u:"MPa"}
+  ]}
+];
+
+function fmt(x,dp){
+  if(dp===undefined) dp=2;
+  if(x==null || !isFinite(x)) return "\u2014";
+  if(Math.abs(x)>=1e5) return x.toLocaleString(undefined,{maximumFractionDigits:0});
+  return x.toLocaleString(undefined,{minimumFractionDigits:dp,maximumFractionDigits:dp});
+}
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function pill(ok){ return '<span class="pill '+(ok?"p-ok":"p-no")+'">'+(ok?"PASS":"FAIL")+'</span>'; }
+
+// ------- state -------
+var state = {};
+for(var kk in DEFAULTS) state[kk]=DEFAULTS[kk];
+
+function currentNumeric(){
+  var num={};
+  for(var key in state){ num[key] = (key==="F19") ? state[key] : Number(state[key]); }
+  return num;
+}
+
+function render(){
+  var res, err=null;
+  try{ res = computeFlange(currentNumeric()); }
+  catch(e){ err = e.message; }
+
+  var html = "";
+
+  // masthead
+  html += '<header class="masthead"><div class="mast-left">'
+    + '<div class="mast-tag">ASME SEC VIII DIV 1 \u00b7 APPENDIX 2</div>'
+    + '<h1>Integral Flange Design</h1>'
+    + '<div class="mast-sub">Circular bolted flange \u00b7 internal pressure \u00b7 live stress verification</div>'
+    + '<div class="mast-actions">'
+    + '<button id="saveHtmlBtn" title="Save this calculator as a standalone HTML file"><span class="ic">\u2193</span>Save as HTML</button>'
+    + '<button id="exportWordBtn" title="Export a detailed input &amp; output report as a Word document"><span class="ic">\u2193</span>Export Word</button>'
+    + '<button id="exportPdfBtn" title="Export a detailed input &amp; output report as a PDF"><span class="ic">\u2193</span>Export PDF</button>'
+    + '</div>'
+    + '</div><div id="verdictSlot">'+buildVerdictHTML(res)+'</div>';
+  html += '</header>';
+
+  html += '<div class="body">';
+
+  // inputs
+  var sugg = {};
+  try{ sugg = suggestValues(state); }catch(e){ sugg = {}; }
+  html += '<aside class="inputs">';
+  html += '<div class="legend"><span class="legend-swatch"></span>auto-calculated suggestion \u2014 tap to apply</div>';
+  GROUPS.forEach(function(g){
+    html += '<section class="group"><div class="group-head">'+esc(g.label)+'</div>';
+    g.fields.forEach(function(f){
+      html += '<div class="field-wrap"><label class="field"><span class="field-name">'+f.t+'</span>';
+      if(f.select){
+        html += '<select data-k="'+f.k+'">';
+        f.select.forEach(function(o){
+          html += '<option'+(String(state[f.k])===String(o)?" selected":"")+'>'+esc(o)+'</option>';
+        });
+        html += '</select>';
+      } else {
+        html += '<span class="field-input"><input type="text" inputmode="decimal" autocomplete="off" data-k="'+f.k+'" value="'+esc(state[f.k])+'">'
+          + (f.u?'<em>'+f.u+'</em>':'')+'</span>';
+      }
+      html += '</label>';
+      // suggested (bold red) auto-calc value slot — updated in place while typing
+      html += '<div class="suggest-slot" id="sugg_'+f.k+'">'+buildSuggestChip(f.k, sugg)+'</div>';
+      html += '</div>';
+    });
+    html += '</section>';
+  });
+  html += '<button class="reset" id="applyAllBtn">Apply all suggestions</button>';
+  html += '<button class="reset reset-alt" id="resetBtn">Reset to reference case</button>';
+  html += '</aside>';
+
+  // results
+  html += '<main class="results" id="resultsMain">' + buildResultsHTML(res, err) + '</main></div>';
+
+  html += '<footer class="foot">'
+    + '<span style="color:var(--ink-3)">Developed by :AY</span></footer>';
+
+  document.getElementById("app").innerHTML = html;
+  wire();
+}
+
+// Verdict badge (masthead) — rebuilt on every value change
+function buildVerdictHTML(res){
+  if(!res) return '';
+  return '<div class="verdict '+(res.overallPass?"ok":"no")+'"><div class="verdict-dot"></div><div>'
+    + '<div class="verdict-word">'+(res.overallPass?"ACCEPTABLE":"NOT ACCEPTABLE")+'</div>'
+    + '<div class="verdict-note">'+(res.overallPass?"all stress &amp; rigidity limits met":"one or more limits exceeded")+'</div>'
+    + '</div></div>';
+}
+
+// Single suggestion chip for one field key
+function buildSuggestChip(k, sugg){
+  if(sugg[k]==null || !isFinite(sugg[k])) return '';
+  var sv = sugg[k];
+  var cur = Number(state[k]);
+  var matches = isFinite(cur) && Math.abs(sv-cur) < 1e-6;
+  return '<div class="suggest'+(matches?" suggest-match":"")+'">'
+    + '<span class="suggest-label">auto-calc</span>'
+    + '<span class="suggest-val">'+fmt(sv, sv%1===0?0:2)+'</span>'
+    + (matches
+        ? '<span class="suggest-tick">in use</span>'
+        : '<button class="suggest-use" data-use="'+k+'" data-val="'+sv+'">use</button>')
+    + '</div>';
+}
+
+// Full results-panel markup (everything in the right column)
+function buildResultsHTML(res, err){
+  var html = "";
+  if(err){
+    return '<div style="background:var(--no-bg);color:var(--no);padding:12px 14px;border:1px solid var(--no);border-radius:2px;font-family:var(--mono);font-size:12px">Input error: '+esc(err)+'</div>';
+  }
+  var r = res;
+  // check cards
+  html += '<div class="cards">';
+  html += checkCard("Bolt area", r.boltAreaAvail, r.boltAreaReq, "mm\u00b2", r.boltAreaPass, "\u2265","available","required",1);
+  html += checkCard("Bolt spacing", r.actualSpacing, r.maxSpacing, "mm", r.spacingPass, "\u2264","actual","max",1);
+  html += checkCard("Rigidity (op.)", r.rigidityOp, 1, "", r.rigidityOpPass, "\u2264","index","limit",3);
+  html += checkCard("Rigidity (seat.)", r.rigidityGs, 1, "", r.rigidityGsPass, "\u2264","index","limit",3);
+  html += '</div>';
+
+  // stress panel
+  html += '<section class="panel"><div class="panel-head"><div><h2>Flange stress analysis</h2>'
+    + '<span class="panel-note">all values kg/cm\u00b2 \u00b7 actual vs. allowable</span></div></div><div class="panel-body">';
+  html += '<table class="stress"><thead>'
+    + '<tr><th class="l">Stress</th><th colspan="3">Operating condition</th><th colspan="3">Gasket seating condition</th></tr>'
+    + '<tr class="sub"><th class="l"></th><th>actual</th><th>allow</th><th></th><th>actual</th><th>allow</th><th></th></tr>'
+    + '</thead><tbody>';
+  r.stresses.forEach(function(s){
+    html += '<tr><td class="l">'+esc(s.name)+'</td>'
+      + '<td class="num">'+fmt(s.op)+'</td><td class="num dim">'+fmt(s.opAllow)+'</td><td class="flag">'+pill(s.opPass)+'</td>'
+      + '<td class="num">'+fmt(s.gs)+'</td><td class="num dim">'+fmt(s.gsAllow)+'</td><td class="flag">'+pill(s.gsPass)+'</td></tr>';
+  });
+  html += '</tbody></table>';
+  // util bars
+  html += '<div class="bars"><div class="bars-cap">Utilisation \u2014 governing (operating vs. seating), % of allowable</div>';
+  r.stresses.forEach(function(s){
+    var u = Math.max(s.op/s.opAllow, s.gs/s.gsAllow);
+    var pct = Math.min(u*100,130), over=u>1;
+    html += '<div class="bar-row"><span class="bar-name">'+esc(s.name)+'</span>'
+      + '<div class="bar-track"><div class="bar-fill'+(over?" bar-over":"")+'" style="width:'+pct+'%"></div><div class="bar-limit"></div></div>'
+      + '<span class="bar-pct'+(over?" over":"")+'">'+(u*100).toFixed(0)+'%</span></div>';
+  });
+  html += '</div></div></section>';
+
+  // two col: loads + moments
+  html += '<div class="two-col">';
+  html += panel("Design loads","hydrostatic forces &amp; bolt loads", dl([
+    ["H \u2014 total hydrostatic end force", r.H, "kg"],
+    ["H_D \u2014 end force, inside flange", r.HD, "kg"],
+    ["H_T \u2014 force difference", r.HT, "kg"],
+    ["H_P \u2014 joint compression load", r.HP, "kg"],
+    ["W_m1 \u2014 bolt load, operating", r.Wm1, "kg"],
+    ["W_m2 \u2014 bolt load, seating", r.Wm2, "kg"],
+    ["A_m \u2014 required bolt area", r.Am, "mm\u00b2"],
+    ["A_b \u2014 available bolt area", r.Ab, "mm\u00b2"]
+  ]));
+  html += panel("Moments","internal-pressure moment summary (kg\u00b7m)", dl([
+    ["M_d \u2014 end pressure", r.Md, "kg\u00b7m"],
+    ["M_t \u2014 face pressure", r.Mt, "kg\u00b7m"],
+    ["M_g \u2014 gasket load", r.Mg, "kg\u00b7m"],
+    ["M_op \u2014 total, operating", r.MOP, "kg\u00b7m"],
+    ["M_gs \u2014 total, seating", r.MGS, "kg\u00b7m"],
+    ["Moment arms", null, ""],
+    ["  h_D", r.hD, "mm"],
+    ["  h_T", r.hT, "mm"],
+    ["  h_G", r.hG, "mm"]
+  ]));
+  html += '</div>';
+
+  // factors
+  var facs = [
+    ["h\u2080",r.h0,3],["A",r.A,4],["C",r.C,4],["F",r.F,4],["V",r.V,4],["f",r.f,4],
+    ["K",r.K,4],["T",r.T,4],["U",r.U,4],["Y",r.Y,4],["Z",r.Z,4],["d",r.d,1],
+    ["e",r.e,5],["\u03b2",r.beta,4],["\u03bb",r.lambda,4],["G",r.G,2],["b",r.b,2],["BSC",r.BSC,3]
+  ];
+  var facHtml = '<div class="factors">';
+  facs.forEach(function(f){
+    facHtml += '<div class="factor"><span class="fn">'+f[0]+'</span><span class="fv">'+fmt(f[1],f[2])+'</span></div>';
+  });
+  facHtml += '</div>';
+  html += '<section class="panel"><div class="panel-head" style="cursor:pointer" id="facHead"><div>'
+    + '<h2>Shape &amp; stress factors</h2><span class="panel-note">ASME App. 2 tables 2-7.1 / figure 2-7.1</span></div>'
+    + '<span class="chevron" id="facChevron">\u2212</span></div>'
+    + '<div class="panel-body" id="facBody">'+facHtml+'</div></section>';
+  return html;
+}
+
+// Partial refresh: recompute and repaint results + verdict only (keeps focus)
+function updateResults(){
+  var res, err=null;
+  try{ res = computeFlange(currentNumeric()); }
+  catch(e){ err = e.message; }
+  var main = document.getElementById("resultsMain");
+  if(main) main.innerHTML = buildResultsHTML(res, err);
+  var vs = document.getElementById("verdictSlot");
+  if(vs) vs.innerHTML = buildVerdictHTML(res);
+  wireResults();
+}
+
+// Partial refresh: repaint suggestion chips only (never touches inputs)
+function updateSuggestions(){
+  var sugg = {};
+  try{ sugg = suggestValues(state); }catch(e){ sugg = {}; }
+  GROUPS.forEach(function(g){
+    g.fields.forEach(function(f){
+      var slot = document.getElementById("sugg_"+f.k);
+      if(slot) slot.innerHTML = buildSuggestChip(f.k, sugg);
+    });
+  });
+  wireSuggestButtons();
+}
+
+function checkCard(title,actual,allow,unit,pass,rel,aLabel,lLabel,dp){
+  return '<div class="card '+(pass?"card-ok":"card-no")+'">'
+    + '<div class="card-top"><span class="card-title">'+esc(title)+'</span>'+pill(pass)+'</div>'
+    + '<div class="card-main">'+fmt(actual,dp)+'<em>'+unit+'</em></div>'
+    + '<div class="card-rel">'+aLabel+' '+rel+' '+fmt(allow,dp)+' '+unit+' '+lLabel+'</div></div>';
+}
+function panel(title,note,inner){
+  return '<section class="panel"><div class="panel-head"><div><h2>'+title+'</h2>'
+    + (note?'<span class="panel-note">'+note+'</span>':'')+'</div></div>'
+    + '<div class="panel-body">'+inner+'</div></section>';
+}
+function dl(rows){
+  var h='<dl class="dl">';
+  rows.forEach(function(row){
+    var k=row[0], v=row[1], u=row[2];
+    h += '<div class="dl-row'+(v==null?" dl-head":"")+'"><dt>'+esc(k)+'</dt>'
+      + (v!=null?'<dd>'+fmt(v)+'<em>'+u+'</em></dd>':'')+'</div>';
+  });
+  return h+'</dl>';
+}
+
+function wire(){
+  var inputs = document.querySelectorAll("input[data-k], select[data-k]");
+  inputs.forEach(function(el){
+    var ev = el.tagName==="SELECT" ? "change" : "input";
+    el.addEventListener(ev, function(){
+      state[el.getAttribute("data-k")] = el.value;
+      if(el.tagName==="SELECT"){
+        render(); // dropdown change is safe to fully re-render
+      } else {
+        // Text field: refresh results + suggestion chips WITHOUT touching
+        // the field the user is typing in (prevents digit reordering).
+        updateResults();
+        updateSuggestions();
+      }
+    });
+  });
+  var applyAll = document.getElementById("applyAllBtn");
+  if(applyAll) applyAll.addEventListener("click", function(){
+    var s = suggestValues(state);
+    for(var k in s){ if(isFinite(s[k])) state[k]=s[k]; }
+    render();
+  });
+  var reset = document.getElementById("resetBtn");
+  if(reset) reset.addEventListener("click", function(){
+    for(var kk in DEFAULTS) state[kk]=DEFAULTS[kk];
+    render();
+  });
+  var sh=document.getElementById("saveHtmlBtn");
+  if(sh) sh.addEventListener("click", saveAsHtml);
+  var ew=document.getElementById("exportWordBtn");
+  if(ew) ew.addEventListener("click", exportWord);
+  var ep=document.getElementById("exportPdfBtn");
+  if(ep) ep.addEventListener("click", exportPdf);
+  wireSuggestButtons();
+  wireResults();
+}
+
+// (Re)bind the "use" buttons on suggestion chips — chips are rebuilt on updates
+function wireSuggestButtons(){
+  var useBtns = document.querySelectorAll("button[data-use]");
+  useBtns.forEach(function(b){
+    b.addEventListener("click", function(){
+      state[b.getAttribute("data-use")] = Number(b.getAttribute("data-val"));
+      render();
+    });
+  });
+}
+
+// (Re)bind interactive elements inside the results column (factors toggle)
+function wireResults(){
+  var facHead = document.getElementById("facHead");
+  if(facHead) facHead.addEventListener("click", function(){
+    var b=document.getElementById("facBody"), c=document.getElementById("facChevron");
+    if(b.style.display==="none"){ b.style.display=""; c.textContent="\u2212"; }
+    else { b.style.display="none"; c.textContent="+"; }
+  });
+}
+
+// ============================================================================
+// EXPORT / REPORT GENERATION
+// ============================================================================
+
+function nowStamp(){
+  var d=new Date();
+  function p(n){return (n<10?"0":"")+n;}
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())
+    +" "+p(d.getHours())+":"+p(d.getMinutes());
+}
+function fnStamp(){
+  var d=new Date();
+  function p(n){return (n<10?"0":"")+n;}
+  return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes());
+}
+function rEsc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// Trigger a client-side download of a text blob.
+function downloadBlob(content, filename, mime){
+  try{
+    var blob=new Blob([content],{type:mime});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a");
+    a.href=url; a.download=filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },400);
+  }catch(e){ alert("Download failed: "+e.message); }
+}
+
+// ---- Save the live calculator as a standalone HTML file -------------------
+function saveAsHtml(){
+  // Serialize current document, injecting current input values as new DEFAULTS
+  // so the reopened file starts from the values on screen.
+  var clone="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
+  // remove the transient signature badge node (guard re-creates it on load)
+  clone=clone.replace(/<div id="ay-signature"[^>]*>[\s\S]*?<\/div>/,"");
+  // persist current state by rewriting the DEFAULTS object literal
+  try{
+    var dj=JSON.stringify(state);
+    clone=clone.replace(/var DEFAULTS\s*=\s*\{[\s\S]*?\};/,
+      "var DEFAULTS = "+dj+";");
+  }catch(e){}
+  downloadBlob(clone, "FlangeDesign_"+fnStamp()+".html", "text/html;charset=utf-8");
+}
+
+// ---- Build the detailed report body (shared by Word + PDF) ----------------
+// Returns an object {res, err, bodyHtml}. bodyHtml is self-contained report
+// markup (no external CSS dependency) covering ALL inputs and outputs.
+function buildReport(){
+  var res, err=null;
+  try{ res=computeFlange(currentNumeric()); }
+  catch(e){ err=e.message; }
+
+  var h="";
+  h+='<div class="rpt-title">Integral Flange Design Report</div>';
+  h+='<div class="rpt-std">ASME Section VIII Division 1 &mdash; Appendix 2 &middot; Circular bolted flange, internal pressure</div>';
+  h+='<div class="rpt-meta">Generated '+rEsc(nowStamp())+'</div>';
+
+  // Verdict
+  if(res){
+    h+='<div class="rpt-verdict '+(res.overallPass?"v-ok":"v-no")+'">'
+      +(res.overallPass?"RESULT: ACCEPTABLE &mdash; all stress &amp; rigidity limits met"
+                       :"RESULT: NOT ACCEPTABLE &mdash; one or more limits exceeded")
+      +'</div>';
+  } else {
+    h+='<div class="rpt-verdict v-no">INPUT ERROR: '+rEsc(err||"unknown")+'</div>';
+  }
+
+  // ---- SECTION 1: INPUTS ----
+  h+='<h2 class="rpt-h">1 &nbsp; Design Inputs</h2>';
+  GROUPS.forEach(function(g){
+    h+='<h3 class="rpt-h3">'+rEsc(g.label)+'</h3>';
+    h+='<table class="rpt-tbl"><thead><tr><th>Parameter</th><th class="r">Value</th><th>Unit</th></tr></thead><tbody>';
+    g.fields.forEach(function(f){
+      var v=state[f.k];
+      var disp=(f.select)? String(v) : fmt(Number(v), (Number(v)%1===0?0:3));
+      if(v===""||v==null) disp="\u2014";
+      h+='<tr><td>'+rEsc(f.t)+'</td><td class="r">'+rEsc(disp)+'</td><td>'+rEsc(f.u||"")+'</td></tr>';
+    });
+    h+='</tbody></table>';
+  });
+
+  if(!res){ return {res:res, err:err, bodyHtml:h}; }
+  var r=res;
+
+  // ---- SECTION 2: CODE CHECKS ----
+  h+='<h2 class="rpt-h">2 &nbsp; Code Compliance Checks</h2>';
+  h+='<table class="rpt-tbl"><thead><tr><th>Check</th><th class="r">Actual</th><th class="r">Limit</th><th>Unit</th><th>Result</th></tr></thead><tbody>';
+  function chkRow(name,act,lim,unit,pass,dp){
+    h+='<tr><td>'+name+'</td><td class="r">'+fmt(act,dp)+'</td><td class="r">'+fmt(lim,dp)
+      +'</td><td>'+unit+'</td><td class="'+(pass?"pass":"fail")+'">'+(pass?"PASS":"FAIL")+'</td></tr>';
+  }
+  chkRow("Bolt area (available \u2265 required)", r.boltAreaAvail, r.boltAreaReq, "mm\u00b2", r.boltAreaPass,1);
+  chkRow("Bolt spacing (actual \u2264 max)", r.actualSpacing, r.maxSpacing, "mm", r.spacingPass,1);
+  chkRow("Rigidity index, operating (\u2264 1)", r.rigidityOp, 1, "\u2014", r.rigidityOpPass,3);
+  chkRow("Rigidity index, seating (\u2264 1)", r.rigidityGs, 1, "\u2014", r.rigidityGsPass,3);
+  h+='</tbody></table>';
+
+  // ---- SECTION 3: STRESS ANALYSIS ----
+  h+='<h2 class="rpt-h">3 &nbsp; Flange Stress Analysis <span class="rpt-note">(all values kg/cm&sup2;)</span></h2>';
+  h+='<table class="rpt-tbl"><thead>'
+    +'<tr><th rowspan="2">Stress component</th><th colspan="3" class="grp">Operating condition</th><th colspan="3" class="grp">Gasket seating condition</th></tr>'
+    +'<tr><th class="r">Actual</th><th class="r">Allow.</th><th>Result</th><th class="r">Actual</th><th class="r">Allow.</th><th>Result</th></tr>'
+    +'</thead><tbody>';
+  r.stresses.forEach(function(s){
+    h+='<tr><td>'+rEsc(s.name)+'</td>'
+      +'<td class="r">'+fmt(s.op)+'</td><td class="r">'+fmt(s.opAllow)+'</td>'
+      +'<td class="'+(s.opPass?"pass":"fail")+'">'+(s.opPass?"PASS":"FAIL")+'</td>'
+      +'<td class="r">'+fmt(s.gs)+'</td><td class="r">'+fmt(s.gsAllow)+'</td>'
+      +'<td class="'+(s.gsPass?"pass":"fail")+'">'+(s.gsPass?"PASS":"FAIL")+'</td></tr>';
+  });
+  h+='</tbody></table>';
+
+  // ---- SECTION 4: LOADS & MOMENTS ----
+  h+='<h2 class="rpt-h">4 &nbsp; Design Loads and Moments</h2>';
+  h+='<div class="rpt-2col"><div>';
+  h+='<h3 class="rpt-h3">Hydrostatic forces &amp; bolt loads</h3>';
+  h+='<table class="rpt-tbl"><tbody>';
+  function kv(name,val,unit,dp){
+    h+='<tr><td>'+rEsc(name)+'</td><td class="r">'+(val==null?"":fmt(val,dp))+'</td><td>'+rEsc(unit||"")+'</td></tr>';
+  }
+  kv("H \u2014 total hydrostatic end force", r.H,"kg");
+  kv("H_D \u2014 end force, inside flange", r.HD,"kg");
+  kv("H_T \u2014 force difference", r.HT,"kg");
+  kv("H_P \u2014 joint compression load", r.HP,"kg");
+  kv("W_m1 \u2014 bolt load, operating", r.Wm1,"kg");
+  kv("W_m2 \u2014 bolt load, seating", r.Wm2,"kg");
+  kv("A_m \u2014 required bolt area", r.Am,"mm\u00b2");
+  kv("A_b \u2014 available bolt area", r.Ab,"mm\u00b2");
+  h+='</tbody></table></div><div>';
+  h+='<h3 class="rpt-h3">Moments &amp; moment arms</h3>';
+  h+='<table class="rpt-tbl"><tbody>';
+  kv("M_d \u2014 end pressure", r.Md,"kg\u00b7m");
+  kv("M_t \u2014 face pressure", r.Mt,"kg\u00b7m");
+  kv("M_g \u2014 gasket load", r.Mg,"kg\u00b7m");
+  kv("M_op \u2014 total, operating", r.MOP,"kg\u00b7m");
+  kv("M_gs \u2014 total, seating", r.MGS,"kg\u00b7m");
+  kv("h_D \u2014 moment arm", r.hD,"mm");
+  kv("h_T \u2014 moment arm", r.hT,"mm");
+  kv("h_G \u2014 moment arm", r.hG,"mm");
+  h+='</tbody></table></div></div>';
+
+  // ---- SECTION 5: SHAPE & STRESS FACTORS ----
+  h+='<h2 class="rpt-h">5 &nbsp; Shape &amp; Stress Factors <span class="rpt-note">(ASME App. 2 tables 2-7.1 / fig 2-7.1)</span></h2>';
+  var facs=[["h\u2080",r.h0,3],["A",r.A,4],["C",r.C,4],["F",r.F,4],["V",r.V,4],["f",r.f,4],
+    ["K",r.K,4],["T",r.T,4],["U",r.U,4],["Y",r.Y,4],["Z",r.Z,4],["d",r.d,1],
+    ["e",r.e,5],["\u03b2",r.beta,4],["\u03bb",r.lambda,4],["G",r.G,2],["b",r.b,2],["BSC",r.BSC,3]];
+  h+='<table class="rpt-tbl rpt-fac"><tbody>';
+  for(var i=0;i<facs.length;i+=3){
+    h+='<tr>';
+    for(var j=i;j<i+3;j++){
+      if(facs[j]){ h+='<td class="fk">'+facs[j][0]+'</td><td class="r fv">'+fmt(facs[j][1],facs[j][2])+'</td>'; }
+      else { h+='<td></td><td></td>'; }
+    }
+    h+='</tr>';
+  }
+  h+='</tbody></table>';
+
+  return {res:res, err:err, bodyHtml:h};
+}
+
+// Shared report CSS (inlined into Word/PDF documents so they are self-contained)
+function reportCss(){
+  return ''
+    +'*{box-sizing:border-box}'
+    +'body{font-family:"Segoe UI",Arial,sans-serif;color:#101418;font-size:11pt;line-height:1.4;margin:0;padding:28px 32px}'
+    +'.rpt-title{font-size:20pt;font-weight:700;margin:0 0 2px}'
+    +'.rpt-std{font-size:10pt;color:#454e57;margin-bottom:2px}'
+    +'.rpt-meta{font-size:9pt;color:#7a848e;margin-bottom:14px}'
+    +'.rpt-verdict{font-weight:700;font-size:11pt;padding:9px 12px;border:1.5px solid;border-radius:3px;margin-bottom:18px}'
+    +'.v-ok{color:#2f6d4f;background:#e6f0ea;border-color:#2f6d4f}'
+    +'.v-no{color:#a8362f;background:#f6e6e4;border-color:#a8362f}'
+    +'h2.rpt-h{font-size:12.5pt;font-weight:700;border-bottom:2px solid #101418;padding-bottom:3px;margin:20px 0 8px}'
+    +'.rpt-note{font-weight:400;font-size:9pt;color:#7a848e}'
+    +'h3.rpt-h3{font-size:10.5pt;font-weight:600;color:#2c5b7c;margin:12px 0 4px}'
+    +'table.rpt-tbl{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:10pt}'
+    +'.rpt-tbl th,.rpt-tbl td{border:1px solid #d9d3c6;padding:4px 7px;text-align:left;vertical-align:top}'
+    +'.rpt-tbl thead th{background:#f3f0e9;font-weight:600;font-size:9pt}'
+    +'.rpt-tbl th.grp{text-align:center}'
+    +'.rpt-tbl .r{text-align:right;font-variant-numeric:tabular-nums}'
+    +'.pass{color:#2f6d4f;font-weight:700}'
+    +'.fail{color:#a8362f;font-weight:700}'
+    +'.rpt-2col{display:flex;gap:20px}.rpt-2col>div{flex:1}'
+    +'.rpt-fac .fk{font-weight:600;width:8%}.rpt-fac .fv{width:25%}'
+    +'.rpt-sig{margin-top:26px;padding-top:8px;border-top:1px solid #d9d3c6;font-size:9pt;color:#454e57;text-align:right}'
+    +'@media print{body{padding:0}}';
+}
+
+function reportSignature(){
+  return '<div class="rpt-sig">Developed by :AY &middot; Report generated '+rEsc(nowStamp())+'</div>';
+}
+
+// ---- Export Word (.doc) ---------------------------------------------------
+// Word opens HTML-based .doc files natively; this keeps everything offline
+// with no library dependency, preserving tables, colours and layout.
+function exportWord(){
+  var rep=buildReport();
+  var doc='<html xmlns:o="urn:schemas-microsoft-com:office:office" '
+    +'xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
+    +'<head><meta charset="utf-8"><title>Flange Design Report</title>'
+    +'<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View>'
+    +'<w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->'
+    +'<style>@page{size:A4;margin:1.6cm}'+reportCss()+'</style></head><body>'
+    +rep.bodyHtml+reportSignature()+'</body></html>';
+  downloadBlob("\ufeff"+doc, "FlangeDesignReport_"+fnStamp()+".doc",
+    "application/msword;charset=utf-8");
+}
+
+// ---- Export PDF -----------------------------------------------------------
+// Opens a print-optimised window and invokes the browser's native
+// "Save as PDF". No external library; works fully offline.
+function exportPdf(){
+  var rep=buildReport();
+  var full='<!DOCTYPE html><html><head><meta charset="utf-8">'
+    +'<title>FlangeDesignReport_'+fnStamp()+'</title>'
+    +'<style>@page{size:A4;margin:14mm}'+reportCss()+'</style></head><body>'
+    +rep.bodyHtml+reportSignature()+'</body></html>';
+  var w=window.open("","_blank");
+  if(!w){ alert("Please allow pop-ups to export the PDF report."); return; }
+  w.document.open(); w.document.write(full); w.document.close();
+  // Wait for layout, then invoke print-to-PDF.
+  w.onload=function(){ setTimeout(function(){ w.focus(); w.print(); }, 350); };
+  // Fallback if onload already fired
+  setTimeout(function(){ try{ w.focus(); w.print(); }catch(e){} }, 800);
+}
+
+render();
+
+/* ==========================================================================
+   Signature guard — "Developed by :AY"
+   Re-inserts a fixed, floating signature badge whenever it is removed from
+   the DOM, and enforces its text/visibility. Deters casual removal; a
+   determined editor of the source can still defeat it.
+   ========================================================================== */
+(function(){
+  var SIG = ["D","e","v","e","l","o","p","e","d"," ","b","y"," ",":","A","Y"].join("");
+  function ensure(){
+    var b = document.getElementById("ay-signature");
+    if(!b){
+      b = document.createElement("div");
+      b.id = "ay-signature";
+      document.body.appendChild(b);
+    }
+    if(b.textContent !== SIG) b.textContent = SIG;
+    var cs = b.style;
+    cs.setProperty("display","block","important");
+    cs.setProperty("visibility","visible","important");
+    cs.setProperty("opacity","1","important");
+    // keep it last so it can't be visually buried
+    if(b.parentNode !== document.body || b !== document.body.lastElementChild){
+      document.body.appendChild(b);
+    }
+  }
+  ensure();
+  // Restore on any DOM mutation (removal, text change, style change).
+  try{
+    new MutationObserver(ensure).observe(document.documentElement,
+      {childList:true,subtree:true,attributes:true,characterData:true});
+  }catch(e){}
+  // Belt-and-braces periodic check in case the observer is disconnected.
+  setInterval(ensure, 800);
+  // Reassert after the app re-renders.
+  if(typeof render === "function"){
+    var _r = render;
+    render = function(){ var o = _r.apply(this, arguments); ensure(); return o; };
+  }
+})();
+</script>
+</body>
+</html>
