@@ -128,6 +128,13 @@ table.stress{width:100%;border-collapse:collapse;font-size:12.5px}
 .stress td.flag{text-align:center;width:52px}
 .stress tbody tr:hover{background:#faf8f3}
 
+/* min / actual / max spacing table */
+.stress.spacing td.l{width:40%}
+.stress.spacing thead th.act{color:var(--steel)}
+.stress.spacing td.act{font-weight:600;color:var(--ink)}
+.stress.spacing td.na{font-family:var(--mono);text-align:right;color:var(--line)}
+.stress.spacing td.num em{font-style:normal;color:var(--ink-3);font-size:10.5px;margin-left:3px}
+
 /* util bars */
 .bars{margin-top:16px;padding-top:14px;border-top:1px solid var(--line-2)}
 .bars-cap{font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--ink-3);text-transform:uppercase;margin-bottom:10px}
@@ -167,6 +174,9 @@ table.stress{width:100%;border-collapse:collapse;font-size:12.5px}
   .bar-row{grid-template-columns:120px 1fr 40px}
 }
 @media(max-width:560px){
+  .stress.spacing td.l{width:auto;font-size:11.5px}
+  .stress.spacing thead th{font-size:9px;padding:5px 4px}
+  .stress.spacing tbody td{padding:6px 4px}
   .cards{grid-template-columns:1fr}
   .masthead h1{font-size:24px}
   .factors{grid-template-columns:repeat(2,1fr)}
@@ -270,15 +280,27 @@ function computeFlange(inp){
   var F39 = Math.PI*F32*F30*y*1e-2;
   var F40 = Math.max(F38/F12,F39/F13)*1e2;
 
-  var F42 = 2*AH25+(6*AD35)/(m+0.5);
+  // Nominal bolt diameter "a" from the size string, e.g. "M20" -> 20.
+  // (workbook flange3!AA26 = RIGHT(AA25,LEN(AA25)-1))
+  var boltDia = parseFloat(String(F19).replace(/^[A-Za-z]+/, ""));
+  if(!isFinite(boltDia)) boltDia = AH25;
+
+  // Maximum circumferential bolt spacing, B_max = 2a + 6t/(m+0.5).
+  // "a" is the NOMINAL BOLT DIAMETER — matches the workbook (M20, t-CA=42,
+  // m=3  ->  2*20 + 6*42/3.5 = 112 mm).
+  var F42 = 2*boltDia+(6*AD35)/(m+0.5);
   var F43 = F20*Math.sin(Math.PI/F21);
+  // Bolt-spacing correction factor BSC = sqrt(Bs/(2a+t)); basis left on AH25
+  // exactly as in the original cell-for-cell port (BSC = 1.000 either way at
+  // the reference case, since Bs < 2a+t).
   var F44 = Math.max(Math.sqrt(F43/(2*AH25+AD35)),1);
 
   var D48 = AC25*F21;
   var F54 = D48*F13*1e-2;
   var F55 = F38-F34;
 
-  var D49 = (F20-F3-2*F15)/2;
+  var D49 = (F20-F3-2*F15)/2;      // radial gap, hub OD -> bolt circle  (R)
+  var Redge = (F22-F20)/2;         // radial gap, bolt circle -> flange edge (E)
   var F58 = D49+0.5*(F15-F10);
   var F59 = (F20-F30)/2;
   var F60 = (D49+F15-F10+F59)/2;
@@ -385,7 +407,15 @@ function computeFlange(inp){
     H:F34, HD:F35, HP:F36, HT:F37, Wm1:F38, Wm2:F39, Am:F40,
     Ab:D48, W:F54, HG:F55,
     maxSpacing:F42, actualSpacing:F43, BSC:F44,
-    boltRootArea:AC25, minBoltSpacing:AF25,
+    boltRootArea:AC25, minBoltSpacing:AF25, boltDia:boltDia,
+
+    // ---- TEMA bolt spacing & area information (workbook rows 6-11) --------
+    // minimum column = TEMA table values for the selected bolt size
+    radHubBoltMin:B[5],  radHubBoltAct:D49,     // R  — hub to bolts
+    radBoltEdgeMin:B[7], radBoltEdgeAct:Redge,  // E  — bolts to edge
+    circSpacingMin:AF25, circSpacingAct:F43, circSpacingMax:F42,
+    radHubBoltPass:(D49>=B[5]),
+    radBoltEdgePass:(Redge>=B[7]),
     hD:F58, hG:F59, hT:F60,
     Md:F64, Mt:F65, Mg:F66, Mgs:F67, MOP:F69, MGS:F70,
     A:A, C:C, F:BB51, V:V, f:f, K:K, T:T, U:U, Y:Y, Z:Z, d:d, e:e, beta:beta, lambda:lambda,
@@ -396,7 +426,8 @@ function computeFlange(inp){
     rigidityOpPass:rigid_op<=1, rigidityGsPass:rigid_gs<=1
   };
   res.overallPass = stresses.every(function(s){return s.opPass && s.gsPass;})
-    && res.boltAreaPass && res.spacingPass && res.rigidityOpPass && res.rigidityGsPass;
+    && res.boltAreaPass && res.spacingPass && res.rigidityOpPass && res.rigidityGsPass
+    && res.radHubBoltPass && res.radBoltEdgePass;
   return res;
 }
 
@@ -565,6 +596,9 @@ function buildResultsHTML(res, err){
   html += checkCard("Rigidity (seat.)", r.rigidityGs, 1, "", r.rigidityGsPass, "\u2264","index","limit",3);
   html += '</div>';
 
+  // bolt spacing & area information (TEMA metric bolts)
+  html += buildSpacingHTML(r);
+
   // stress panel
   html += '<section class="panel"><div class="panel-head"><div><h2>Flange stress analysis</h2>'
     + '<span class="panel-note">all values kg/cm\u00b2 \u00b7 actual vs. allowable</span></div></div><div class="panel-body">';
@@ -655,6 +689,40 @@ function updateSuggestions(){
     });
   });
   wireSuggestButtons();
+}
+
+// Bolt spacing & area information — mirrors the workbook block
+// "BOLT SPACING AND AREA INFORMATION FOR TEMA METRIC BOLTS" (rows 6-11).
+// Minimum column = TEMA table D-5 values for the selected bolt size;
+// maximum column applies only to circumferential spacing.
+function buildSpacingHTML(r){
+  function row(name,min,act,max,pass,dp){
+    return '<tr><td class="l">'+name+'</td>'
+      + '<td class="num dim">'+(min==null?'':fmt(min,dp))+'</td>'
+      + '<td class="num act">'+fmt(act,dp)+'</td>'
+      + (max==null ? '<td class="na">&mdash;</td>' : '<td class="num dim">'+fmt(max,dp)+'</td>')
+      + '<td class="flag">'+pill(pass)+'</td></tr>';
+  }
+  var h = '<section class="panel"><div class="panel-head"><div>'
+    + '<h2>Bolt spacing &amp; area information</h2>'
+    + '<span class="panel-note">TEMA metric bolts \u00b7 minimums from table D-5 for '
+    + esc(state.F19)+' \u00b7 '+fmt(Number(state.F21),0)+' bolts</span>'
+    + '</div></div><div class="panel-body">';
+  h += '<table class="stress spacing"><thead><tr>'
+    + '<th class="l">Item</th><th>minimum</th><th class="act">actual</th>'
+    + '<th>maximum</th><th></th></tr></thead><tbody>';
+  h += row("Bolt area (mm\u00b2)", r.boltAreaReq, r.boltAreaAvail, null, r.boltAreaPass, 2);
+  h += row("Radial distance between hub and bolts (mm)",
+           r.radHubBoltMin, r.radHubBoltAct, null, r.radHubBoltPass, 2);
+  h += row("Radial distance between bolts and edge (mm)",
+           r.radBoltEdgeMin, r.radBoltEdgeAct, null, r.radBoltEdgePass, 2);
+  h += row("Circumferential spacing between bolts (mm)",
+           r.circSpacingMin, r.circSpacingAct, r.circSpacingMax, r.spacingPass, 2);
+  h += '</tbody></table>';
+  h += '<div class="bars" style="margin-top:12px;padding-top:10px">'
+    + '<div class="bars-cap">Minimum bolt area is the required area A\u2098; '
+    + 'maximum spacing = 2a + 6t/(m+0.5), a = '+fmt(r.boltDia,0)+' mm</div></div>';
+  return h+'</div></section>';
 }
 
 function checkCard(title,actual,allow,unit,pass,rel,aLabel,lLabel,dp){
@@ -835,6 +903,32 @@ function buildReport(){
   chkRow("Rigidity index, operating (\u2264 1)", r.rigidityOp, 1, "\u2014", r.rigidityOpPass,3);
   chkRow("Rigidity index, seating (\u2264 1)", r.rigidityGs, 1, "\u2014", r.rigidityGsPass,3);
   h+='</tbody></table>';
+
+  // ---- 2b: BOLT SPACING & AREA INFORMATION (TEMA METRIC BOLTS) ----
+  h+='<h3 class="rpt-h3">Bolt spacing and area information for TEMA metric bolts</h3>';
+  h+='<table class="rpt-tbl"><thead><tr><th>Item</th><th class="r">Minimum</th>'
+    +'<th class="r">Actual</th><th class="r">Maximum</th><th>Unit</th><th>Result</th></tr>'
+    +'</thead><tbody>';
+  function spcRow(name,min,act,max,unit,pass,dp){
+    h+='<tr><td>'+rEsc(name)+'</td>'
+      +'<td class="r">'+(min==null?"\u2014":fmt(min,dp))+'</td>'
+      +'<td class="r">'+fmt(act,dp)+'</td>'
+      +'<td class="r">'+(max==null?"\u2014":fmt(max,dp))+'</td>'
+      +'<td>'+unit+'</td>'
+      +'<td class="'+(pass?"pass":"fail")+'">'+(pass?"PASS":"FAIL")+'</td></tr>';
+  }
+  spcRow("Bolt area", r.boltAreaReq, r.boltAreaAvail, null, "mm\u00b2", r.boltAreaPass,2);
+  spcRow("Radial distance between hub and bolts",
+         r.radHubBoltMin, r.radHubBoltAct, null, "mm", r.radHubBoltPass,2);
+  spcRow("Radial distance between bolts and edge",
+         r.radBoltEdgeMin, r.radBoltEdgeAct, null, "mm", r.radBoltEdgePass,2);
+  spcRow("Circumferential spacing between bolts",
+         r.circSpacingMin, r.circSpacingAct, r.circSpacingMax, "mm", r.spacingPass,2);
+  h+='</tbody></table>';
+  h+='<div style="font-size:9pt;color:#7a848e;margin-bottom:8px">Minimum values from TEMA '
+    +'table D-5 for bolt size '+rEsc(String(state.F19))+'. Minimum bolt area is the required '
+    +'area A<sub>m</sub>. Maximum spacing = 2a + 6t/(m+0.5), with a = '+fmt(r.boltDia,0)
+    +' mm (nominal bolt diameter).</div>';
 
   // ---- SECTION 3: STRESS ANALYSIS ----
   h+='<h2 class="rpt-h">3 &nbsp; Flange Stress Analysis <span class="rpt-note">(all values kg/cm&sup2;)</span></h2>';
