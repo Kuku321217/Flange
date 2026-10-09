@@ -35,6 +35,20 @@ html,body{margin:0}
   pointer-events:none;user-select:none}
 body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;min-height:100vh}
 
+/* flange tab bar */
+.tabbar{display:flex;gap:0;flex-wrap:wrap;padding:0 30px;background:var(--card);border-bottom:2px solid var(--ink)}
+.tab{font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.03em;color:var(--ink-3);
+  background:transparent;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;
+  padding:12px 18px;cursor:pointer;transition:color .12s,border-color .12s,background .12s;white-space:nowrap}
+.tab:hover{color:var(--ink);background:var(--line-2)}
+.tab.active{color:var(--steel);border-bottom-color:var(--steel)}
+.tab .tab-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:7px;vertical-align:middle;background:var(--ink-3)}
+.tab.active .tab-dot{background:var(--steel)}
+.tab .tab-dot.dot-ok{background:var(--ok)}
+.tab .tab-dot.dot-no{background:var(--no)}
+@media print{.tabbar{display:none !important}}
+@media(max-width:560px){.tabbar{padding:0 8px}.tab{padding:10px 11px;font-size:10.5px}}
+
 /* masthead */
 .masthead{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;
   padding:26px 30px 22px;border-bottom:2px solid var(--ink);flex-wrap:wrap}
@@ -181,6 +195,19 @@ table.stress{width:100%;border-collapse:collapse;font-size:12.5px}
   .masthead h1{font-size:24px}
   .factors{grid-template-columns:repeat(2,1fr)}
 }
+/* Exchanger Input section */
+.ex-two-col{align-items:start}
+.ex-grid{display:grid;grid-template-columns:1fr;gap:0}
+.ex-field{border-bottom:1px solid var(--line-2);padding:8px 0}
+.ex-field:last-child{border-bottom:none}
+.ex-field label{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ex-fname{font-size:12.5px;color:var(--ink-2)}
+.ex-field .field-input{flex:0 0 auto}
+.ex-field .field-input input{width:120px;text-align:right;font-family:var(--mono);font-size:13px;
+  padding:5px 8px;border:1.2px solid var(--line);border-radius:2px;background:var(--card);color:var(--ink)}
+.ex-field .field-input input:focus{outline:none;border-color:var(--steel)}
+.ex-field .field-input em{font-style:normal;color:var(--ink-3);font-size:11px;margin-left:6px;font-family:var(--mono)}
+@media(max-width:560px){.ex-field .field-input input{width:96px}}
 </style>
 </head>
 <body>
@@ -476,6 +503,75 @@ var GROUPS = [
   ]}
 ];
 
+// ===========================================================================
+// EXCHANGER INPUT  (mirrors the workbook sheet "exchangerinput")
+//   Two sub-sections: Shell-side and Channel-side design (internal-pressure
+//   thickness).  Inputs are seeded from the reference workbook; every output
+//   below reproduces the exact worksheet formulas.
+// ===========================================================================
+
+// Pipe schedule lookup (workbook cols AF..AI, rows 3..6):
+//   id = od - 2*thickness.  Used by the TEMA-thickness diameter test.
+var PIPE_SCHED = [
+  {nps:6,  thk:7.11, od:168.3, id:168.3-2*7.11},   // 154.08
+  {nps:8,  thk:7.04, od:219.1, id:219.1-2*7.04},   // 205.02
+  {nps:10, thk:7.8,  od:273.0, id:273.0-2*7.8 },   // 257.40
+  {nps:12, thk:8.38, od:323.8, id:323.8-2*8.38}    // 307.04
+];
+
+// Default (reference) exchanger inputs, matching the uploaded workbook.
+var EX_DEFAULTS = {
+  // shell side
+  sh_D:387.3, sh_P:7, sh_T:365, sh_MOC:"SA 516 Gr. 60",
+  sh_S:1200, sh_CA:3, sh_E:0.85, sh_tAdopt:12,
+  // channel side
+  ch_D:387.3, ch_P:7, ch_T:180, ch_MOC:"SA 516 Gr. 60",
+  ch_S:1200, ch_CA:3, ch_E:0.85, ch_tAdopt:12
+};
+var exState = (function(){ var s={}; for(var k in EX_DEFAULTS) s[k]=EX_DEFAULTS[k]; return s; })();
+
+// TEMA minimum shell/channel thickness as a function of nominal diameter D.
+// Reproduces worksheet cell H15/H35 (nested-IF against the pipe schedule and
+// the fixed TEMA bands for larger diameters).
+function temaThickness(D){
+  var id = {}; PIPE_SCHED.forEach(function(p){ id[p.nps]=p.id; });
+  if(D <= PIPE_SCHED[0].id) return PIPE_SCHED[0].thk;                       // <=154.08 -> 7.11
+  if(D >= PIPE_SCHED[0].id && D <= PIPE_SCHED[1].id) return PIPE_SCHED[1].thk; // ->7.04
+  if(D >= PIPE_SCHED[1].id && D <= PIPE_SCHED[2].id) return PIPE_SCHED[2].thk; // ->7.8
+  if(D >= PIPE_SCHED[2].id && D <= PIPE_SCHED[3].id) return PIPE_SCHED[3].thk; // ->8.38
+  if(D >= 330 && D <= 737)  return 9.5;
+  if(D >= 762 && D <= 991)  return 11.1;
+  if(D >= 991 && D <= 2540) return 12.7;
+  return null; // "check diameter"
+}
+
+// Compute one side (shell or channel).  Prefix is "sh_" or "ch_".
+//   ASME thickness  = P*R / (S*E - 0.6*P) + CA      [R = corroded radius = D/2 + CA]
+//   TEMA thickness  = temaThickness(D)
+//   Required/Final  = max(ASME, TEMA)
+function computeExchangerSide(s, px){
+  var D  = Number(s[px+"D"]);
+  var P  = Number(s[px+"P"]);
+  var S  = Number(s[px+"S"]);
+  var CA = Number(s[px+"CA"]);
+  var E  = Number(s[px+"E"]);
+  var R  = D/2 + CA;                                   // corroded radius
+  var asme = (P===0||S===0||E===0) ? 0 : ((P*R)/(S*E - 0.6*P)) + CA;
+  var tema = temaThickness(D);
+  var temaVal = (tema==null) ? 0 : tema;
+  var required = Math.max(asme, temaVal);              // final / required thickness
+  var adopt = Number(s[px+"tAdopt"]);
+  return {
+    D:D, P:P, S:S, CA:CA, E:E, R:R,
+    asme:asme, tema:tema, temaVal:temaVal,
+    required:required, adopt:adopt,
+    adoptPass:(isFinite(adopt) && adopt >= required)
+  };
+}
+function computeExchanger(s){
+  return { shell:computeExchangerSide(s,"sh_"), channel:computeExchangerSide(s,"ch_") };
+}
+
 function fmt(x,dp){
   if(dp===undefined) dp=2;
   if(x==null || !isFinite(x)) return "\u2014";
@@ -486,8 +582,31 @@ function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").rep
 function pill(ok){ return '<span class="pill '+(ok?"p-ok":"p-no")+'">'+(ok?"PASS":"FAIL")+'</span>'; }
 
 // ------- state -------
-var state = {};
-for(var kk in DEFAULTS) state[kk]=DEFAULTS[kk];
+// Six independent flange tabs, each with its own input set and (derived)
+// output. TABS[i].label is the tab caption; STATES[i] is that tab's inputs.
+var TABS = [
+  {label:"Exchanger Input", exchanger:true},
+  {label:"Flange-1"},
+  {label:"Flange-2"},
+  {label:"Flange-3"},
+  {label:"Flange-4"},
+  {label:"Flange-5"},
+  {label:"Floating flange"}
+];
+function freshState(){ var s={}; for(var k in DEFAULTS) s[k]=DEFAULTS[k]; return s; }
+var STATES = TABS.map(function(){ return freshState(); });
+var activeTab = 0;
+
+// `state` always points at the currently active tab's input set, so every
+// existing function (render, compute, suggestValues, exports) operates on it
+// unchanged.
+var state = STATES[activeTab];
+function setActiveTab(i){
+  if(i<0 || i>=TABS.length) return;
+  activeTab = i;
+  state = STATES[activeTab];
+  render();
+}
 
 function currentNumeric(){
   var num={};
@@ -502,11 +621,54 @@ function render(){
 
   var html = "";
 
+  // flange tab bar
+  html += '<nav class="tabbar" id="tabbar">';
+  TABS.forEach(function(t,i){
+    var dotCls="";
+    try{
+      if(t.exchanger){
+        var ex=computeExchanger(exState);
+        dotCls = (ex.shell.adoptPass && ex.channel.adoptPass) ? " dot-ok" : " dot-no";
+      } else {
+        var tn={}; var ts=STATES[i];
+        for(var key in ts){ tn[key]=(key==="F19")?ts[key]:Number(ts[key]); }
+        var tr=computeFlange(tn);
+        dotCls = tr.overallPass ? " dot-ok" : " dot-no";
+      }
+    }catch(e){ dotCls=""; }
+    html += '<button class="tab'+(i===activeTab?" active":"")+'" data-tab="'+i+'">'
+      + esc(t.label) + '<span class="tab-dot'+dotCls+'"></span></button>';
+  });
+  html += '</nav>';
+
+  // ---- EXCHANGER INPUT tab: dedicated section, own masthead + body ----
+  if(TABS[activeTab].exchanger){
+    var ex = computeExchanger(exState);
+    var exPass = ex.shell.adoptPass && ex.channel.adoptPass;
+    html += '<header class="masthead"><div class="mast-left">'
+      + '<div class="mast-tag">TEMA \u00b7 ASME SEC VIII DIV 1 \u00b7 UG-27</div>'
+      + '<h1>Exchanger Input</h1>'
+      + '<div class="mast-sub">shell &amp; channel data \u00b7 internal-pressure thickness \u00b7 ASME vs. TEMA governing</div>'
+      + '<div class="mast-actions">'
+      + '<button id="saveHtmlBtn" title="Save this calculator as a standalone HTML file"><span class="ic">\u2193</span>Save as HTML</button>'
+      + '</div>'
+      + '</div><div id="verdictSlot">'
+      + '<div class="verdict '+(exPass?"ok":"no")+'"><div class="verdict-dot"></div><div>'
+      + '<div class="verdict-word">'+(exPass?"ACCEPTABLE":"NOT ACCEPTABLE")+'</div>'
+      + '<div class="verdict-note">'+(exPass?"adopted thickness \u2265 required, both sides":"adopted thickness below required")+'</div>'
+      + '</div></div></div></header>';
+    html += buildExchangerHTML(ex);
+    html += '<footer class="foot"><span style="color:var(--ink-3)">Developed by :AY</span></footer>';
+    document.getElementById("app").innerHTML = html;
+    wire();
+    return;
+  }
+
   // masthead
   html += '<header class="masthead"><div class="mast-left">'
     + '<div class="mast-tag">ASME SEC VIII DIV 1 \u00b7 APPENDIX 2</div>'
     + '<h1>Integral Flange Design</h1>'
-    + '<div class="mast-sub">Circular bolted flange \u00b7 internal pressure \u00b7 live stress verification</div>'
+    + '<div class="mast-sub">'+esc(TABS[activeTab].label)+' \u00b7 circular bolted flange \u00b7 internal pressure \u00b7 live stress verification</div>'
     + '<div class="mast-actions">'
     + '<button id="saveHtmlBtn" title="Save this calculator as a standalone HTML file"><span class="ic">\u2193</span>Save as HTML</button>'
     + '<button id="exportWordBtn" title="Export a detailed input &amp; output report as a Word document"><span class="ic">\u2193</span>Export Word</button>'
@@ -675,7 +837,35 @@ function updateResults(){
   if(main) main.innerHTML = buildResultsHTML(res, err);
   var vs = document.getElementById("verdictSlot");
   if(vs) vs.innerHTML = buildVerdictHTML(res);
+  // keep the active tab's status dot in sync without a full re-render
+  var activeBtn = document.querySelector('.tab[data-tab="'+activeTab+'"] .tab-dot');
+  if(activeBtn){
+    activeBtn.classList.remove("dot-ok","dot-no");
+    if(res) activeBtn.classList.add(res.overallPass?"dot-ok":"dot-no");
+  }
   wireResults();
+}
+
+// Partial refresh for the Exchanger Input tab: recompute both sides and
+// repaint their output blocks, pills, masthead verdict and tab dot — without
+// rebuilding the input fields (keeps caret position while typing).
+function updateExchanger(){
+  var ex = computeExchanger(exState);
+  var sides = {sh_:ex.shell, ch_:ex.channel};
+  ["sh_","ch_"].forEach(function(px){
+    var out = document.getElementById("exOut_"+px);
+    if(out) out.innerHTML = exSideOutput(sides[px]);
+    var pl = document.getElementById("exPill_"+px);
+    if(pl) pl.innerHTML = pill(sides[px].adoptPass);
+  });
+  var exPass = ex.shell.adoptPass && ex.channel.adoptPass;
+  var vs = document.getElementById("verdictSlot");
+  if(vs) vs.innerHTML = '<div class="verdict '+(exPass?"ok":"no")+'"><div class="verdict-dot"></div><div>'
+    + '<div class="verdict-word">'+(exPass?"ACCEPTABLE":"NOT ACCEPTABLE")+'</div>'
+    + '<div class="verdict-note">'+(exPass?"adopted thickness \u2265 required, both sides":"adopted thickness below required")+'</div>'
+    + '</div></div>';
+  var dot = document.querySelector('.tab[data-tab="'+activeTab+'"] .tab-dot');
+  if(dot){ dot.classList.remove("dot-ok","dot-no"); dot.classList.add(exPass?"dot-ok":"dot-no"); }
 }
 
 // Partial refresh: repaint suggestion chips only (never touches inputs)
@@ -725,6 +915,78 @@ function buildSpacingHTML(r){
   return h+'</div></section>';
 }
 
+// ---- Exchanger Input section: two sub-sections (Shell / Channel) ----------
+// Each sub-section shows its editable data (seeded from the workbook) and the
+// derived thickness output.  Field keys carry a "sh_" or "ch_" prefix so both
+// blocks share one exState object and one input handler.
+function exField(px, k, label, unit, val){
+  return '<div class="ex-field"><label><span class="ex-fname">'+label+'</span>'
+    + '<span class="field-input"><input type="text" inputmode="decimal" autocomplete="off" '
+    + 'data-exk="'+px+k+'" value="'+esc(val)+'">'+(unit?'<em>'+unit+'</em>':'')+'</span>'
+    + '</label></div>';
+}
+function exTextField(px, k, label, val){
+  return '<div class="ex-field"><label><span class="ex-fname">'+label+'</span>'
+    + '<span class="field-input"><input type="text" autocomplete="off" '
+    + 'data-exk="'+px+k+'" value="'+esc(val)+'" style="text-align:left"></span>'
+    + '</label></div>';
+}
+function exSide(title, tag, px, r){
+  var s = exState;
+  var h = '<section class="panel"><div class="panel-head"><div>'
+    + '<h2>'+title+'</h2><span class="panel-note">'+tag+' \u00b7 internal-pressure thickness</span>'
+    + '</div><span id="exPill_'+px+'">'+pill(r.adoptPass)+'</span></div><div class="panel-body">';
+
+  // inputs
+  h += '<div class="group-head" style="margin-top:0">Design data</div>';
+  h += '<div class="ex-grid">';
+  h += exField(px,"D","Diameter (D)","mm", s[px+"D"]);
+  h += exField(px,"P","Design pressure (P)","kg/cm\u00b2", s[px+"P"]);
+  h += exField(px,"T","Design temperature (T)","\u00b0C", s[px+"T"]);
+  h += exTextField(px,"MOC","Material of construction", s[px+"MOC"]);
+  h += exField(px,"S","Allowable stress (S)","kg/cm\u00b2", s[px+"S"]);
+  h += exField(px,"CA","Corrosion allowance (CA)","mm", s[px+"CA"]);
+  h += exField(px,"E","Joint efficiency (E)","", s[px+"E"]);
+  h += exField(px,"tAdopt","Thickness adopted","mm", s[px+"tAdopt"]);
+  h += '</div>';
+
+  // outputs (repainted in place by updateExchanger)
+  h += '<div class="group-head">Calculated output</div>';
+  h += '<div id="exOut_'+px+'">'+exSideOutput(r)+'</div>';
+
+  return h + '</div></section>';
+}
+// Output block for one side — separated so it can be repainted without
+// disturbing the input fields.
+function exSideOutput(r){
+  var h = '<dl class="dl">';
+  h += '<div class="dl-row"><dt>Corroded radius  R = D/2 + CA</dt><dd>'+fmt(r.R)+'<em>mm</em></dd></div>';
+  h += '<div class="dl-row"><dt>ASME thickness  = P\u00b7R/(S\u00b7E \u2212 0.6P) + CA</dt><dd>'+fmt(r.asme)+'<em>mm</em></dd></div>';
+  h += '<div class="dl-row"><dt>TEMA thickness</dt><dd>'+(r.tema==null?'<span style="color:var(--no)">check dia</span>':fmt(r.tema))+'<em>mm</em></dd></div>';
+  h += '<div class="dl-row" style="font-weight:600"><dt>Required thickness  = max(ASME, TEMA)</dt><dd>'+fmt(r.required)+'<em>mm</em></dd></div>';
+  h += '</dl>';
+  h += '<div class="cards" style="margin-top:10px">'
+    + checkCard("Thickness adopted", r.adopt, r.required, "mm", r.adoptPass, "\u2265", "adopted", "required", 2)
+    + '</div>';
+  return h;
+}
+function buildExchangerHTML(ex){
+  var h = '<div class="body" style="display:block;padding:22px 30px">';
+  h += '<div class="two-col ex-two-col">';
+  h += exSide("Shell side design", "shell", "sh_", ex.shell);
+  h += exSide("Channel side design", "channel", "ch_", ex.channel);
+  h += '</div>';
+  h += '<section class="panel"><div class="panel-head"><div>'
+    + '<h2>Basis &amp; notes</h2><span class="panel-note">reference workbook \u201cexchangerinput\u201d</span>'
+    + '</div></div><div class="panel-body"><div class="bars"><div class="bars-cap">'
+    + 'ASME thickness per UG-27 (circumferential stress): t = P\u00b7R/(S\u00b7E \u2212 0.6P) + CA, with R the corroded inside radius. '
+    + 'TEMA minimum thickness is selected from the pipe-schedule / TEMA diameter bands. '
+    + 'Required thickness is the greater of the two; the design is acceptable when the adopted thickness meets it. '
+    + 'Pressure and stress in kg/cm\u00b2, dimensions in mm.'
+    + '</div></div></div></section>';
+  return h + '</div>';
+}
+
 function checkCard(title,actual,allow,unit,pass,rel,aLabel,lLabel,dp){
   return '<div class="card '+(pass?"card-ok":"card-no")+'">'
     + '<div class="card-top"><span class="card-title">'+esc(title)+'</span>'+pill(pass)+'</div>'
@@ -747,6 +1009,12 @@ function dl(rows){
 }
 
 function wire(){
+  var tabs = document.querySelectorAll(".tab[data-tab]");
+  tabs.forEach(function(b){
+    b.addEventListener("click", function(){
+      setActiveTab(Number(b.getAttribute("data-tab")));
+    });
+  });
   var inputs = document.querySelectorAll("input[data-k], select[data-k]");
   inputs.forEach(function(el){
     var ev = el.tagName==="SELECT" ? "change" : "input";
@@ -760,6 +1028,15 @@ function wire(){
         updateResults();
         updateSuggestions();
       }
+    });
+  });
+  // exchanger-input fields (data-exk) — update exState, repaint outputs
+  // in place without rebuilding the field the user is typing in.
+  var exInputs = document.querySelectorAll("input[data-exk]");
+  exInputs.forEach(function(el){
+    el.addEventListener("input", function(){
+      exState[el.getAttribute("data-exk")] = el.value;
+      updateExchanger();
     });
   });
   var applyAll = document.getElementById("applyAllBtn");
@@ -842,11 +1119,13 @@ function saveAsHtml(){
   var clone="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
   // remove the transient signature badge node (guard re-creates it on load)
   clone=clone.replace(/<div id="ay-signature"[^>]*>[\s\S]*?<\/div>/,"");
-  // persist current state by rewriting the DEFAULTS object literal
+  // persist every tab's inputs by rewriting the STATES array initialiser and
+  // the active-tab index, so the reopened file restores all six flanges.
   try{
-    var dj=JSON.stringify(state);
-    clone=clone.replace(/var DEFAULTS\s*=\s*\{[\s\S]*?\};/,
-      "var DEFAULTS = "+dj+";");
+    var sj=JSON.stringify(STATES);
+    clone=clone.replace(/var STATES = TABS\.map\(function\(\)\{ return freshState\(\); \}\);/,
+      "var STATES = "+sj+";");
+    clone=clone.replace(/var activeTab = 0;/, "var activeTab = "+activeTab+";");
   }catch(e){}
   downloadBlob(clone, "FlangeDesign_"+fnStamp()+".html", "text/html;charset=utf-8");
 }
@@ -860,7 +1139,7 @@ function buildReport(){
   catch(e){ err=e.message; }
 
   var h="";
-  h+='<div class="rpt-title">Integral Flange Design Report</div>';
+  h+='<div class="rpt-title">Integral Flange Design Report &mdash; '+rEsc(TABS[activeTab].label)+'</div>';
   h+='<div class="rpt-std">ASME Section VIII Division 1 &mdash; Appendix 2 &middot; Circular bolted flange, internal pressure</div>';
   h+='<div class="rpt-meta">Generated '+rEsc(nowStamp())+'</div>';
 
